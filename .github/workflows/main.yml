@@ -1,0 +1,50 @@
+name: "Terraform"
+on:
+  push:
+    branches:
+      - main
+      
+jobs:
+  terraform:
+    name: "Terraform"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          # terraform_version: 0.13.0:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+      - name: Setup JDK
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - name: mvn build
+        run: mvn -B package -DskipTests --file pom.xml
+      - name: Install zip
+        uses: montudor/action-zip@v1
+      - name: Zip output
+        run: zip -qq -r ecommerce-restaurant.zip ecommerce-restaurant
+        working-directory: target/
+      - name: file Structure outside target
+        run: |
+          ls -a
+      - name: file Structure inside target
+        run: |
+          cd target
+          ls -a
+      - name: Terraform Init
+        id: init
+        run: terraform init
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan
+        continue-on-error: true
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -input=false
+      - name: Terraform destroy
+        run: terraform destroy -auto-approve
